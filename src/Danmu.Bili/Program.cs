@@ -1,52 +1,81 @@
-using System.Net;
-using System.Runtime.InteropServices;
-using Danmu.Bili.Utils.AppSettings;
+﻿using System.Text.Json;
+using Danmu.Bili.Models.AppSettings;
+using Danmu.Bili.Models.Converters;
+using Danmu.Bili.Utils.BiliBiliHelp;
+using Danmu.Bili.Utils.Cache;
+using EasyCaching.LiteDB;
+using Flurl.Http.Configuration;
+using LiteDB;
+using Microsoft.AspNetCore.HttpOverrides;
+using static Danmu.Bili.Utils.Globals.VariableDictionary;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var appSettings = new AppSettings();
+var appSettings = builder.Configuration.Get<AppSettings>();
 
-builder.WebHost.ConfigureAppConfiguration((context, configurationBuilder) =>
-{
-    var env = context.HostingEnvironment;
-    configurationBuilder
-        .AddJsonFile("appsettings.json", true, true)
-        .AddJsonFile($"appsettings.{env.EnvironmentName}.json", true);
-    appSettings = configurationBuilder.Build().Get<AppSettings>();
-}).ConfigureKestrel(serverOptions =>
-{
-    serverOptions.ConfigureEndpointDefaults(listenOptions =>
-    {
-        var ks = appSettings.KestrelSettings;
-
-        //�����Linuxƽ̨
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            if (ks?.UnixSocketPath?.Count > 0)
-                foreach (var path in ks.UnixSocketPath)
-                {
-                    if (File.Exists(path)) File.Delete(path);
-                    serverOptions.ListenUnixSocket(path);
-                }
-        }
-        if(ks?.Listens?.Count > 0)
-            foreach (var listen in ks.Listens)
-                if (IPAddress.TryParse(listen.Key, out var ip))
-                    foreach (var port in listen.Value)
-                        serverOptions.Listen(ip, port);
-    });
-});
+if (!Directory.Exists(appSettings.DataBase.Directory)) Directory.CreateDirectory(appSettings.DataBase.Directory);
 
 // Add services to the container.
+var services = builder.Services;
 
-builder.Services.AddControllers();
+
+services.AddControllers();
+
+//自定义序列化程序
+services.AddControllers().AddXmlSerializerFormatters().AddJsonOptions(opt =>
+{
+    opt.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    opt.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    opt.JsonSerializerOptions.Converters.Add(new IpAddressConverter());
+});
+
+// 配置弹幕缓存数据库
+services.AddEasyCaching(options =>
+{
+    //use memory cache
+    options.UseLiteDB(config =>
+    {
+        config.DBConfig = new LiteDBDBOptions
+        {
+            ConnectionType = ConnectionType.Direct,
+            FilePath = appSettings.DataBase.Directory,
+            FileName = appSettings.DataBase.DanmuCachingDb
+        };
+    }, BiliBiliDanmuCacheLiteDb);
+});
+
+// 转接头，代理
+services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
+//配置跨域
+services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.WithMethods("GET", "POST", "OPTIONS").SetIsOriginAllowedToAllowWildcardSubdomains()
+            .WithOrigins(appSettings.WithOrigins).AllowAnyHeader());
+});
+
+//注册服务
+services.AddSingleton<AppSettings>();
+services.AddSingleton<CacheLiteDb>();
+services.AddSingleton<IFlurlClientFactory, PerBaseUrlFlurlClientFactory>();
+services.AddScoped<BiliBiliHelp>();
+
+
+
 
 var app = builder.Build();
 
+
 // Configure the HTTP request pipeline.
 
-app.UseAuthorization();
-
+app.UseForwardedHeaders();
+app.UseCors();
+app.UseResponseCaching();
 app.MapControllers();
 
 app.Run();
