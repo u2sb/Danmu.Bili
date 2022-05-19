@@ -6,10 +6,10 @@ using Danmu.Bili.Models.WebResults;
 using Danmu.Bili.Utils.BiliBiliHelp;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Danmu.Bili.Controllers.Api.Danmu.ArtPlayer.V1;
+namespace Danmu.Bili.Controllers.Api.ArtPlayer.V1.BiliBili;
 
-[Route("/api/danmu/artplayer/")]
-[Route("/api/danmu/artplayer/v1/")]
+[Route("/api/artplayer/bilibili/")]
+[Route("/api/artplayer/v1/bilibili/")]
 public class ArtPlayerDanmuController : BiliBiliBaseController
 {
     public ArtPlayerDanmuController(BiliBiliHelp bilibili) : base(bilibili)

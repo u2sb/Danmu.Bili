@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Danmu.Bili.Controllers.Api.BiliBili.V1;
 
-[Route("/api/danmu/bilibili/")]
-[Route("/api/danmu/bilibili/v1/")]
+[Route("/api/bilibili/")]
+[Route("/api/bilibili/v1/")]
 public class DanmuController : BiliBiliBaseController
 {
     public DanmuController(BiliBiliHelp bilibili) : base(bilibili)
@@ -17,7 +17,8 @@ public class DanmuController : BiliBiliBaseController
 
     [HttpGet]
     [HttpGet("{id}/{p:int?}")]
-    public async Task<WebResult<IEnumerable<DanmakuElem>?>> GetDanmu([FromQuery] BiliBiliQuery query, string? id, int p = 1)
+    public async Task<WebResult<IEnumerable<DanmakuElem>?>> GetDanmu([FromQuery] BiliBiliQuery query, string? id,
+        int p = 1)
     {
         var danmu = await Bilibili.GetDanmuAsync(query, id, p);
         return new WebResult<IEnumerable<DanmakuElem>?>(danmu?.Elems);
