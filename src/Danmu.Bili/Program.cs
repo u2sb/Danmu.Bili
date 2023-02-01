@@ -4,13 +4,21 @@ using Danmu.Bili.Utils.BiliBiliHelp;
 using Danmu.Bili.Utils.Cache;
 using FastEndpoints;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using RestSharp;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var appSettings = builder.Configuration.Get<AppSettings>();
 
-if (!Directory.Exists(appSettings!.DataBase.Directory)) Directory.CreateDirectory(appSettings.DataBase.Directory);
+var appSettings = builder.Configuration.Get<AppSettings>()!;
+
+builder.WebHost.ConfigureKestrel(o =>
+{
+  if (!string.IsNullOrWhiteSpace(appSettings.UnixSocket))
+    o.ListenUnixSocket(appSettings.UnixSocket, options => { options.Protocols = HttpProtocols.Http1AndHttp2AndHttp3; });
+});
+
+if (!Directory.Exists(appSettings.DataBase.Directory)) Directory.CreateDirectory(appSettings.DataBase.Directory);
 
 // Add services to the container.
 var services = builder.Services;
@@ -46,8 +54,8 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
+// app.UseDefaultFiles();
+// app.UseStaticFiles();
 
 app.UseForwardedHeaders();
 app.UseCors();
