@@ -11,18 +11,25 @@ namespace Danmu.Bili.Models.Danmu.BiliBili;
 [XmlRoot("i", Namespace = "", IsNullable = false)]
 public class OldBiliBiliDanmu
 {
-    [XmlElement("d")] public D[]? D { get; set; }
+  [XmlElement("chatserver")] public string ChatServer { get; set; } = "chat.bilibili.com";
+  [XmlElement("chatid")] public int ChatId { get; set; }
+  [XmlElement("mission")] public int Mission { get; set; }
+  [XmlElement("maxlimit")] public int MaxLimit { get; set; } = 1500;
+  [XmlElement("state")] public int State { get; set; }
+  [XmlElement("real_name")] public string RealName { get; set; } = "0";
+  [XmlElement("source")] public string Source { get; set; } = "e-r";
+  [XmlElement("d")] public D[]? D { get; set; }
 
-    public static explicit operator OldBiliBiliDanmu(RepeatedField<DanmakuElem>? data)
+  public static explicit operator OldBiliBiliDanmu(RepeatedField<DanmakuElem>? data)
+  {
+    var d = data?.Select(s => new D
     {
-        var d = data?.Select(s => new D
-        {
-            P =
-                $"{s.Progress / 1000f},{s.Mode},{s.Fontsize},{s.Color},{s.Ctime},{s.Pool},{s.MidHash},{s.Id}, {s.Weight}",
-            Value = s.Content
-        }).ToArray();
-        return new OldBiliBiliDanmu {D = d};
-    }
+      P =
+        $"{s.Progress / 1000f},{s.Mode},{s.Fontsize},{s.Color},{s.Ctime},{s.Pool},{s.MidHash},{s.Id}, {s.Weight}",
+      Value = s.Content
+    }).ToArray();
+    return new OldBiliBiliDanmu { D = d };
+  }
 }
 
 [Serializable]
@@ -30,7 +37,7 @@ public class OldBiliBiliDanmu
 [XmlType(AnonymousType = true)]
 public class D
 {
-    [XmlAttribute("p")] public string? P { get; set; }
+  [XmlAttribute("p")] public string? P { get; set; }
 
-    [XmlText] public string? Value { get; set; }
+  [XmlText] public string? Value { get; set; }
 }
