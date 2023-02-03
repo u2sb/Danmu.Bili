@@ -28,7 +28,7 @@ public class OldBiliBiliDanmu
         $"{s.Progress / 1000f},{s.Mode},{s.Fontsize},{s.Color},{s.Ctime},{s.Pool},{s.MidHash},{s.Id}, {s.Weight}",
       Value = s.Content
     }).ToArray();
-    return new OldBiliBiliDanmu { D = d };
+    return new OldBiliBiliDanmu { D = d, MaxLimit = data?.Count ?? 1500 };
   }
 }
 

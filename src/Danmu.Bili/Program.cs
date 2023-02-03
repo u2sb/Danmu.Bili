@@ -54,8 +54,8 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 
-// app.UseDefaultFiles();
-// app.UseStaticFiles();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.UseForwardedHeaders();
 app.UseCors();
