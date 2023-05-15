@@ -56,12 +56,10 @@ public class BiliBiliCaching
     var a = await _dmCaching.FindByIdAsync(key);
     if (a != null && a.UploadDate.Add(expiration) > DateTime.UtcNow)
     {
-      var b = await _dmCaching.FindByIdAsync(key);
-
-      if (b != null)
+      if (a != null)
       {
         var ms = new MemoryStream();
-        b.CopyTo(ms);
+        a.CopyTo(ms);
         return ms;
       }
     }
