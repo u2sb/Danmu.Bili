@@ -25,7 +25,7 @@ public class BiliBiliCaching
   public async Task<BiliBiliPages?> PagesGetOrSetAsync(string key, Func<Task<BiliBiliPages?>> factory,
     TimeSpan expiration)
   {
-    var a = await _pagesCaching.FindOneAsync(x => x.Id == key);
+    var a = await _pagesCaching.FindOneAsync(x => x.BvId == key);
 
     if (a is { Pages.Data.Length: > 0 } && a.DateTime.Add(expiration) > DateTime.UtcNow)
       return a.Pages;
@@ -36,7 +36,7 @@ public class BiliBiliCaching
       await _pagesCaching.UpsertAsync(new BiliBiliPagesCaching
       {
         _id = a?._id ?? ObjectId.NewObjectId(),
-        Id = key,
+        BvId = key,
         Pages = b,
         DateTime = DateTime.UtcNow
       });

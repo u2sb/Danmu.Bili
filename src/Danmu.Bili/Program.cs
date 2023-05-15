@@ -15,10 +15,10 @@ public class Program
 {
   public static void Main(string[] args)
   {
-    var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder();
 
     // 配置文件
-    var appSettings = builder.Configuration.Get<AppSettings>()!;
+    var appSettings = builder.Configuration.Get<AppSettings>();
 
     // 运行配置
     builder.WebHost.ConfigureKestrel((b, options) =>
@@ -36,7 +36,7 @@ public class Program
     var services = builder.Services;
 
     // 创建数据库目录
-    if (!Directory.Exists(appSettings.DataBase.Directory))
+    if (!Directory.Exists(appSettings!.DataBase.Directory))
       Directory.CreateDirectory(appSettings.DataBase.Directory);
 
     // 配置格式化
@@ -76,7 +76,11 @@ public class Program
 
     var app = builder.Build();
 
-    if (app.Environment.IsDevelopment()) app.UseDeveloperExceptionPage();
+    if (app.Environment.IsDevelopment())
+    {
+      app.UseDeveloperExceptionPage();
+      app.UseHttpLogging();
+    }
 
     app.UseCors();
     app.UseDefaultFiles();

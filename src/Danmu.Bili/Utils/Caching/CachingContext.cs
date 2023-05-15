@@ -22,7 +22,7 @@ public class CachingContext
 
     // BiliBili Page 缓存库
     BiliBiliPagesCaching = Database.GetCollection<BiliBiliPagesCaching>("BiliPages");
-    BiliBiliPagesCaching.EnsureIndexAsync(x => x.Id);
+    BiliBiliPagesCaching.EnsureIndexAsync(x => x.BvId);
 
     // 弹幕缓存库
     BiliDanMuCache = Database.GetStorage<int>("BiliDanMu", "_biliDanMuChunks");
