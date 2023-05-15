@@ -1,70 +1,100 @@
-锘縰sing System.Text.Json;
-using Danmu.Bili.Models.AppSettings;
-using Danmu.Bili.Utils.BiliBiliHelp;
-using Danmu.Bili.Utils.Cache;
-using FastEndpoints;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Unicode;
+using Danmu.Bili.Models.Settings;
+using Danmu.Bili.Utils.BiliBili;
+using Danmu.Bili.Utils.Caching;
+using Danmu.Bili.Utils.Program;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using RestSharp;
+using WebApiProtobufFormatter;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace Danmu.Bili;
 
-
-var appSettings = builder.Configuration.Get<AppSettings>()!;
-
-builder.WebHost.ConfigureKestrel(o =>
+public class Program
 {
-  if (!string.IsNullOrWhiteSpace(appSettings.UnixSocket))
-    o.ListenUnixSocket(appSettings.UnixSocket, options => { options.Protocols = HttpProtocols.Http1AndHttp2AndHttp3; });
-});
+  public static void Main(string[] args)
+  {
+    var builder = WebApplication.CreateBuilder(args);
 
-if (!Directory.Exists(appSettings.DataBase.Directory)) Directory.CreateDirectory(appSettings.DataBase.Directory);
+    // 配置文件
+    var appSettings = builder.Configuration.Get<AppSettings>()!;
 
-// Add services to the container.
-var services = builder.Services;
+    // 运行配置
+    builder.WebHost.ConfigureKestrel((b, options) =>
+    {
+      var unixSocket = appSettings?.UnixSocket;
+      var port = appSettings?.Port ?? 0;
+      if (port > 0)
+        options.ListenLocalhost(port);
 
-services.AddFastEndpoints();
-
-// 杞帴澶达紝浠ｇ悊
-services.Configure<ForwardedHeadersOptions>(options =>
-{
-  options.ForwardedHeaders =
-    ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-});
-
-//閰嶇疆璺ㄥ煙
-services.AddCors(options =>
-{
-  options.AddDefaultPolicy(policy =>
-    policy.WithMethods("GET", "POST", "OPTIONS").SetIsOriginAllowedToAllowWildcardSubdomains()
-      .WithOrigins(appSettings.WithOrigins).AllowAnyHeader());
-});
-
-//娉ㄥ唽鏈嶅姟
-services.AddSingleton<AppSettings>();
-services.AddSingleton<DanMuCacheDbContext>();
-services.AddSingleton(new RestClient(new HttpClient()));
-services.AddScoped<BiliBiliHelp>();
-services.AddScoped<PageCache>();
-services.AddScoped<DanMuCache>();
+      if (!string.IsNullOrWhiteSpace(unixSocket))
+        options.ListenUnixSocket(unixSocket);
+    });
 
 
-var app = builder.Build();
+    var services = builder.Services;
 
+    // 创建数据库目录
+    if (!Directory.Exists(appSettings.DataBase.Directory))
+      Directory.CreateDirectory(appSettings.DataBase.Directory);
 
-// Configure the HTTP request pipeline.
+    // 配置格式化
+    services.AddControllers().AddProtobufFormatters(opt =>
+    {
+      opt.OutputFormatterOptions.ContentTypeDefault = "application/x-protobuf";
+    }).AddJsonOptions(opt =>
+    {
+      opt.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+      opt.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+      opt.JsonSerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.All);
+    }).AddXmlSerializerFormatters();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
+    // 转接头，代理
+    services.Configure<ForwardedHeadersOptions>(options =>
+    {
+      options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    });
 
-app.UseForwardedHeaders();
-app.UseCors();
-app.UseFastEndpoints(c =>
-{
-  c.Endpoints.RoutePrefix = "api";
+    //配置跨域
+    services.AddCors(options =>
+    {
+      options.AddDefaultPolicy(b => b
+        .SetIsOriginAllowedToAllowWildcardSubdomains()
+        .WithOrigins(appSettings.WithOrigins.ToArray())
+        .WithMethods("GET", "POST", "OPTIONS")
+        .AllowAnyHeader());
+    });
 
-  c.Serializer.Options.PropertyNameCaseInsensitive = true;
-  c.Serializer.Options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-});
+    services.AddSingleton(appSettings);
+    services.AddSingleton<RestClient>();
+    services.AddSingleton<CachingContext>();
+    services.AddSingleton<BiliBiliCaching>();
+    services.AddSingleton<SbLife>();
+    services.AddScoped<BiliBiliHelp>();
 
-app.Run();
+    var app = builder.Build();
+
+    if (app.Environment.IsDevelopment()) app.UseDeveloperExceptionPage();
+
+    app.UseCors();
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+
+    app.UseForwardedHeaders();
+    app.UseRouting();
+
+    app.MapControllers();
+
+    var serviceScope = app.Services.CreateScope();
+    var s = serviceScope.ServiceProvider;
+
+    // 生命周期
+    var life = app.Lifetime;
+    var sbLife = s.GetService<SbLife>();
+    sbLife?.Register(life);
+
+    app.Run();
+  }
+}
